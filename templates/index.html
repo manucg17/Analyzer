@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> Script Analyzer - ALLOT </title>
+    <!-- Styling for the page -->
+    <style>
+        body {
+            background-color: #2c3e50; /* Dark blue background */
+            color: #ecf0f1; /* Light text color */
+            font-family: Arial, sans-serif;
+            margin: 25px auto 0;
+            padding: 0;
+        }
+
+        h1 {
+            color: #3498db; /* Blue heading color */
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        form {
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #34495e; /* Darker blue form background */
+            border-radius: 5px;
+        }
+
+        label {
+            color: #ecf0f1; /* Light label text color */
+        }
+
+        input[type="email"],
+        input[type="file"],
+        input[type="submit"],
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            border: none;
+            border-radius: 3px;
+        }
+
+        input[type="submit"] {
+            background-color: #3498db; /* Blue submit button */
+            color: #ecf0f1; /* Light text color */
+            cursor: pointer;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            color: #f39c12; /* Orange message text color */
+            margin-bottom: 5px;
+        }
+
+        /* Styling for the progress bar */
+        .progress-bar {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress {
+            width: 0%;
+            height: 20px;
+            background-color: #f7dc6f; /* Blue progress color */
+            transition: width 0.5s; /* Smooth transition for width change */
+        }
+
+        /* Styling for the popup */
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            display: none;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Page heading -->
+    <h1> Script Analyzer - ALLOT </h1>
+    <!-- Form for uploading a file -->
+    <form id="upload-form" method="post" action="/upload" enctype="multipart/form-data">
+        <!-- Input for recipient email address -->
+        <label for="recipient_email">Recipient Email Address:</label><br>
+        <input type="email" id="recipient_email" name="recipient_email" pattern="[a-zA-Z0-9._%+-]+@(thinkpalm\.com|allot\.com)$" title="Please enter a valid email from the Thinkpalm or ALLOT domain" required><br>
+        <small id="email-error" style="display:none; color:red;">Expected Email domain is example@thinkpalm.com or example@allot.com</small><br><br>
+
+        <!-- Select the type of file -->
+        <label for="file_type">Select File Type:</label><br>
+        <select id="file_type" name="file_type" required>
+            <option value="cpp">C++ Script (.cpp/.h)</option>
+            <option value="diff">Unified Diff File (.diff/.patch)</option>
+        </select><br><br>
+
+        <!-- Input for selecting a file -->
+        <label for="file">Select File:</label><br>
+        <input type="file" id="file" name="file" accept=".cpp,.h,.diff,.patch" required><br><br>
+
+        <!-- Submit button to upload the file -->
+        <input type="submit" value="Submit">
+
+        <!-- Label and progress bar for file upload progress -->
+        <label id="progress_label" style="display: none;">Uploading...</label>
+        <div class="progress-bar" style="display: none;">
+            <div class="progress" id="progress" style="width: 0%"></div>
+        </div>
+    </form>
+    <!-- Popup for success or error message -->
+    <div id="popup" class="popup" style="display: none;"></div>
+
+    <!-- JavaScript for updating the progress bar and showing the popup -->
+    <script>
+        // Update progress bar during file upload
+        document.querySelector('form').addEventListener('submit', function(event) {
+            var progress = document.getElementById('progress');
+            var fileInput = document.getElementById('file');
+            var fileName = fileInput.value;
+            
+            // Check if the uploaded file has a valid extension
+	    if (!fileName.toLowerCase().endsWith('.cpp') && !fileName.toLowerCase().endsWith('.h') && !fileName.toLowerCase().endsWith('.diff') && !fileName.toLowerCase().endsWith('.patch')) {
+                // Show error popup
+                showPopup("Invalid file format. Please upload a file with a .cpp, .h, .diff, or .patch extension.", true);
+                // Clear the file input
+                fileInput.value = '';
+                event.preventDefault(); // Prevent form submission
+                return;
+            }
+
+            // Check if the email is from the Thinkpalm or ALLOT domain
+            var emailInput = document.getElementById('recipient_email');
+            var email = emailInput.value;
+            if (!email.toLowerCase().endsWith('@thinkpalm.com') && !email.toLowerCase().endsWith('@allot.com')) {
+                // Show error message
+                document.getElementById('email-error').style.display = 'block';
+                event.preventDefault(); // Prevent form submission
+                return;
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    var percentComplete = (e.loaded / e.total) * 100;
+                    progress.style.width = percentComplete + '%';
+                }
+            });
+            xhr.upload.addEventListener('load', function(e) {
+                // File upload completed, show success popup
+                showPopup("File Uploaded Successfully - Analyzed and Email Sent", false);
+                // Simulate sending email (1.5s delay)
+                setTimeout(function() {
+                    showPopup("Successful!", false);
+                }, 2500); // Show the "Email Sent Successfully" popup after 2.5 seconds
+            });
+            xhr.open('POST', '/upload', true);
+            xhr.setRequestHeader('Content-Type', 'multipart/form-data');
+            xhr.send(new FormData(event.target));
+
+            // Function to show a popup message with auto-close functionality
+            function showPopup(message, isError) {
+                var popup = document.getElementById('popup');
+                popup.innerText = message;
+                if (isError) {
+                    popup.classList.add('error');
+                } else {
+                    popup.classList.add('success');
+                }
+                popup.style.display = 'block';
+                setTimeout(function() {
+                    popup.style.display = 'none';
+                }, 1500); // Close the popup after 1.5 seconds
+            }
+        });
+    </script>
+</body>
+</html>

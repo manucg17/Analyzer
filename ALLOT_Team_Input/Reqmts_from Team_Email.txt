@@ -1,0 +1,92 @@
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+What can be included from Script Analyzer:
+
+Mandatory Checks that will be included:
+- Check script indentation.
+- Check naming conventions:
+                ALLOT standards:
+                                All symbols should have a prefix which identifies their module.
+                                Variables/functions start with lower-case.
+                                Types/classes start with upper-case.
+                                Constants are all upper-case.
+                                Global variables start with 'g_'.
+                                Members start with 'm_'
+                                Pointers start with 'p'.
+- Check consistency.
+- Check whitespace usage.
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Input provided by customer will be *.patch file
+Patch File --> will contain the git diff file
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+How to Identify single change in patch file:
+Changes comes after "diff --git <and ends with> .cpp"
++
+Total Number of "diff --git <and ends with> .cpp" will represent how many changes needs analysis
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+What is required is an Analyzer that analyzes only the changes made in Existing lines of code
+- Allot Standards check needs to be performed only on these lines of code
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+How to identify what lines of code needs to be analyzed:
+
+Identification of changes made is using - and + at the EOL where:
+- represents the line of code removed
++ represents the new line of code to replace existing line or new code to be added.
+
+Here lines starting with single + is what needs to be identified and Analyzed.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Additional Enhancements that can be implemented in Existing Script Analyzer:
+- Control Statements requirements: is correctly done (NO changes required here. Please note – Implementation Already done correctly) 
+Example: - "if (...) {" ---> expected syntax -->same for all ctrl statements
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+- Changes to be done for function definition:
+                - Required Syntax for ALLOT where ‘{‘ is on the next line: 
+                return_type function_name(parameter_list)
+                {
+                               // Function body
+                }
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                
+Additionally, For a new function created, format should be:
+
+Example of a C++ Function snippet:
+/*!
+* @brief Event handler to process the DBAgent finished provisioning notification.
+* In some cases DBAgent fails to load the catalog and doesn't send an init to proceed with the boot sequence. HRM waits for
+* a specified amount of time for AOS initialization. If it times out, then card is rebooted. In case DBAgent fails to load
+* the catalogs, then we should not reboot the card, since doing so would result in a reboot loop. When provisioning is
+* completed a flag is set here. Only if this flag is set HRM reboots the card upon software ready timeout.
+*
+* @param [in] event group
+* @param [in] event id
+* @param [in] event data
+* @param [in] event data size
+* @param [in] context
+*
+* @return return KEEPER_FAILURE if incorrect data is received, otherwise return KEEPER_SUCCESS
+*/
+keeperStatus handleDBAgentFinishedProvisioning(unsigned int grp, unsigned int id, void *data, size_t size, void *context)
+
+Requirement: 
+Mandatory Comments must be present above the function definition -
+•	There should be a briefing of the Function denoted by: @brief
+•	The number of @params should be the same as the number of Arguments that the Function accepts denoted by: @param
+•	There should be an Expected return for the Function: @return
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-manu

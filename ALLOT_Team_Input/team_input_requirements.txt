@@ -1,0 +1,112 @@
+ control statments 
+ - braces at EOL
+ - if/s(...)/s{  ---> expected syntax -->same for all ctrl statements
+ 
+ - for a function defn the { should be on the next line
+  
+ ALLOT standards:
+ All symbols should have a prefix which identifies their module.
+ Variables/functions start with lower-case.
+ Types/classes start with upper-case.
+ Constants are all upper-case.
+ Global variables start with 'g_'.
+ Members start with 'm_'
+ Pointers start with 'p'.
+ 
+ 
+ Folder containing multiple Files
+ 
+ 
+ 
+init new function created
+@brief
+@param - argument count
+@return
+
+git diff --> review 
+
+indentation
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Based on the Script_Analyzer, Requirements raised by Customer:
+Please note that the Analysis implemented in the existing version of Script_Analyzer will be incoorporated as per git diff file and will be finalized later
+What we can definitely include:
+
+Mandatory Checks:
+ Check script indentation.
+ Check naming conventions:
+	ALLOT standards:
+		All symbols should have a prefix which identifies their module.
+		Variables/functions start with lower-case.
+		Types/classes start with upper-case.
+		Constants are all upper-case.
+		Global variables start with 'g_'.
+		Members start with 'm_'
+		Pointers start with 'p'.
+ Check consistency.
+ Check whitespace usage.
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+They need to input a patch file
+Patch File --> git diff file
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+How to Identify single change in patch file:
+Changes comes after "diff --git <and ends with> .cpp"
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+What is required is an Analyzer that analyzes only the changes made in Existing lines of code
+- Allot Standards check needs to be performed only on these lines of code
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Identification of changes made is using - and + at the EOL where:
+- represents the line of code removed
++ represents the new line of code to replace existing
+ 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Additional Enhancements that can be implemented in Existing Script Analyzer:
+- Control Statements requirements: is correctly done (NO change) 
+Example: - "if (...) {" ---> expected syntax -->same for all ctrl statements
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+- Changes to be done for function definition:
+	- Required Syntax for ALLOT: 
+	return_type function_name(parameter_list)
+	{
+		// Function body
+	}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	
+Additionally, For a new function created, format should be:
+/*!
+ * @brief Event handler to process the DBAgent finished provisioning notification.
+ * In some cases DBAgent fails to load the catalog and doesn't send an init to proceed with the boot sequence. HRM waits for
+ * a specified amount of time for AOS initialization. If it times out, then card is rebooted. In case DBAgent fails to load
+ * the catalogs, then we should not reboot the card, since doing so would result in a reboot loop. When provisioning is
+ * completed a flag is set here. Only if this flag is set HRM reboots the card upon software ready timeout.
+ *
+ * @param [in] event group
+ * @param [in] event id
+ * @param [in] event data
+ * @param [in] event data size
+ * @param [in] context
+ *
+ * @return return KEEPER_FAILURE if incorrect data is received, otherwise return KEEPER_SUCCESS
+ */
+keeperStatus handleDBAgentFinishedProvisioning(unsigned int grp, unsigned int id, void *data, size_t size, void *context)
+
+Mandatory Comments above the function definition -
+There should be a briefing denoted by @brief
+There should be a briefing denoted by @param (The number of @params should be the same as the number of Aruguments that the Function accepts)
+There should be a briefing denoted by @return
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
