@@ -8,6 +8,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from pygments.lexers import get_lexer_by_name
+from pygments.token import Token
 
 # Set global configuration values
 SMTP_SERVER = 'smtp-mail.outlook.com'
@@ -24,10 +26,13 @@ class PatchAnalyzer:
             'indentation_check': 0,
             'naming_conventions_check': 0,
         }
-        logging.basicConfig(filename=self.log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
         # Initialize error count
         self.error_count = 0
+
+        # Extract C++ keywords
+        self.cpp_keywords = self.extract_cpp_keywords()
 
     def get_log_file_name(self):
         current_datetime = datetime.now().strftime("%H-%M-%S-on-%d-%m-%Y")
@@ -36,6 +41,26 @@ class PatchAnalyzer:
         os.chmod(log_folder, 0o777)  # Set permission to 777
         log_file_name = f"Logs-{self.script_path.stem}-at-{current_datetime}.log"
         return log_folder / log_file_name
+
+
+    def extract_cpp_keywords(self):
+        # Get the lexer for C++
+        lexer = get_lexer_by_name('cpp')
+
+        # Read the file content
+        with open(self.script_path, 'r') as file:
+            content = file.read()
+
+        # Tokenize the content
+        tokens = lexer.get_tokens(content)
+
+        # Extract keywords
+        keywords = set()
+        for token_type, token_value in tokens:
+            if token_type in Token.Keyword:
+                keywords.add(token_value)
+
+        return keywords
 
     def run_analysis(self):
         try:
@@ -295,8 +320,11 @@ class PatchAnalyzer:
             'pointer': r'^\s*(p[a-z][a-zA-Z0-9]*)\s*(?:\*|\s\*)'
         }
 
-        # Check each line in the hunk
-        for line_number, line in enumerate(hunk_lines, start=hunk_info['start_line']):
+        # Filter out lines that contain C++ keywords
+        filtered_lines = [line for line in hunk_lines if not any(keyword in line for keyword in self.cpp_keywords)]
+
+        # Check each line in the filtered hunk
+        for line_number, line in enumerate(filtered_lines, start=hunk_info['start_line']):
             # Check if the line is an added line
             if line.startswith('+'):
                 # Remove the '+' at the start
