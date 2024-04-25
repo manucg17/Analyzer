@@ -143,12 +143,17 @@
             var progress = document.getElementById('progress');
             var fileInput = document.getElementById('file');
             var fileName = fileInput.value;
-            
-            // Check if the uploaded file has a valid extension
-	    if (!fileName.toLowerCase().endsWith('.cpp') && !fileName.toLowerCase().endsWith('.h') && !fileName.toLowerCase().endsWith('.diff') && !fileName.toLowerCase().endsWith('.patch')) {
-                // Show error popup
-                showPopup("Invalid file format. Please upload a file with a .cpp, .h, .diff, or .patch extension.", true);
-                // Clear the file input
+            var fileType = document.getElementById('file_type').value;
+
+            var allowedExtensions = [];
+            if (fileType === 'cpp') {
+                allowedExtensions = ['.cpp', '.h'];
+            } else if (fileType === 'diff') {
+                allowedExtensions = ['.diff', '.patch'];
+            }
+
+            if (!allowedExtensions.some(ext => fileName.toLowerCase().endsWith(ext))) {
+                showPopup("Invalid file format. Please upload a file with a valid extension for the selected file type.", true);
                 fileInput.value = '';
                 event.preventDefault(); // Prevent form submission
                 return;

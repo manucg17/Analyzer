@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from encryption_utils import decrypt_data
 
 # Set global configuration values
 SMTP_SERVER = 'smtp-mail.outlook.com'
@@ -31,12 +32,13 @@ ITERATION_VALUES = {
 }
 
 class ScriptAnalyzer:
-    def __init__(self, script_path, recipient_email, sender_email, sender_password):
+    def __init__(self, script_path, recipient_email, encrypted_sender_email, encrypted_sender_password, encryption_key):
         self.script_path = Path(script_path)
         self.recipient_email = recipient_email
-        self.sender_email = sender_email
-        self.sender_password = sender_password
+        self.sender_email = decrypt_data(encrypted_sender_email, encryption_key).decode()
+        self.sender_password = decrypt_data(encrypted_sender_password, encryption_key).decode()
         self.log_file = self.get_log_file_name()
+        self.encryption_key = encryption_key
         self.counts = {
             'total_lines_check': 0,
             'indentation_check': 0,
