@@ -50,6 +50,15 @@ class ScriptAnalyzer:
         logging.basicConfig(filename=self.log_file, level=logging.INFO,
                             format='%(asctime)s - %(levelname)s - %(message)s')
 
+        def filter_out_http_requests(record):
+            message = record.getMessage()
+            if "GET /upload" in message and "HTTP/1.1" in message:
+                return False  # Do not log messages containing "GET /upload HTTP/1.1"
+            return True  # Log all other messages
+
+        # Add the filter to the logger
+        logger = logging.getLogger(__name__)
+        logger.addFilter(filter_out_http_requests)         
         # Initialize error count
         self.error_count = 0
 
@@ -67,6 +76,24 @@ class ScriptAnalyzer:
             print("Starting Script Analysis.")
             # Creating Log with Analysis in Log Directory
             logging.info("Starting Script Analysis.")
+
+            # Check for mandatory #include directive
+            self.check_include_directive()
+
+            # Check if the file is a header file or a source file
+            file_extension = self.script_path.suffix.lower()
+            if file_extension == ".h":
+                try:
+                    # Check script indentation
+                    self.check_function_syntax_header()
+                except Exception as e:
+                    logging.error(f"Error during Function syntax check: {str(e)}")
+            elif file_extension == ".cpp":
+                try:
+                    # Check script indentation
+                    self.check_function_syntax_cpp()
+                except Exception as e:
+                    logging.error(f"Error during Function syntax check: {str(e)}")
 
             # Check for mandatory #include directive
             self.check_include_directive()
@@ -160,7 +187,6 @@ class ScriptAnalyzer:
             with open(self.script_path, "r") as script_file:
                 lines = script_file.readlines()
 
-                first_non_comment_line = None
                 in_multiline_comment = False
                 for line_number, line in enumerate(lines, start=1):
                     stripped_line = line.strip()
@@ -174,12 +200,10 @@ class ScriptAnalyzer:
                         continue
                     if stripped_line.startswith("//"):
                         continue
-                    first_non_comment_line = line_number
-                    break
-
-                if not first_non_comment_line or not lines[first_non_comment_line - 1].strip().startswith("#include "):
-                    logging.error("Mandatory '#include ' directive missing at the beginning of the file.")
-                    self.counts['include_directive_check'] = 1  # Increment the count
+                    if not stripped_line.startswith("#include "):
+                        logging.error("Mandatory '#include ' directive missing at the beginning of the file.")
+                        self.counts['include_directive_check'] = 1  # Increment the count
+                        break  # Exit loop after finding the first non-comment, non-preprocessor directive line
         except FileNotFoundError:
             logging.error(f"File not found: {self.script_path}")
         except Exception as e:
@@ -279,6 +303,89 @@ class ScriptAnalyzer:
         except Exception as e:
             logging.error(f"Error during indentation check: {str(e)}")
 
+    def check_function_syntax_header(self):
+        """
+        Check function syntax for header files.
+        """
+        # Read the script content
+        with open(self.script_path, 'r') as file:
+            content = file.readlines()
+
+        # Initialize function declaration regex
+        function_declaration_regex = re.compile(r'^[a-zA-Z_]\w*\s+[a-zA-Z_]\w*\s*\([^;]*\)\s*;\s*$')
+
+        # Iterate through each line
+        for line_number, line in enumerate(content, start=1):
+            # Check if the line contains a function declaration
+            if function_declaration_regex.match(line.strip()):
+                logging.info(f"Line {line_number}: Function declaration syntax check passed.")
+                self.counts['function_conventions_check'] += 1
+            else:
+                logging.warning(f"Line {line_number}: Function declaration syntax check failed.")
+                self.error_count += 1
+
+    def check_function_syntax_cpp(self):
+        """
+        Check function syntax for C++ files.
+        """
+        # Read the script content
+        with open(self.script_path, 'r') as file:
+            content = file.readlines()
+
+        # Initialize function declaration regex
+        function_declaration_regex = re.compile(r'^[a-zA-Z_]\w*\s+[a-zA-Z_]\w*\s*\(([^;]*)\)\s*{\s*$')
+
+        # Initialize comment regex
+        comment_regex = re.compile(r'^\s*/\*!\s*\n'
+                                    r'\s*\*\s+@brief.*\n'
+                                    r'(?:\s*\*\s+@param.*\n)*'
+                                    r'\s*\*\s+@return.*\n'
+                                    r'\s*\*/\s*$')
+
+        # Iterate through each line
+        for line_number, line in enumerate(content, start=1):
+            # Check if the line contains a function declaration
+            match = function_declaration_regex.match(line.strip())
+            if match:
+                logging.info(f"Line {line_number}: Function declaration syntax check passed.")
+                self.counts['function_conventions_check'] += 1
+
+                # Extract the arguments from the function declaration
+                args = match.group(1).split(',') if match.group(1) else []
+
+                # Check if there is a comment above the function definition
+                if not self.check_comment_above_function(content, line_number, comment_regex, args):
+                    logging.warning(f"Line {line_number}: Comment above function definition does not match required format.")
+                    self.error_count += 1
+            else:
+                logging.warning(f"Line {line_number}: Function declaration syntax check failed.")
+                self.error_count += 1
+
+    def check_comment_above_function(self, content, current_line_number, comment_regex, function_args):
+        """
+        Check if the comment above the function definition matches the required format.
+        """
+        # Start from the line above the function declaration
+        line_number = current_line_number - 1
+        param_count = 0
+        while line_number >= 0:
+            # Check if the current line is a comment
+            if comment_regex.match(content[line_number].strip()):
+                # Count the number of @param tags in the comment
+                if '@param' in content[line_number]:
+                    param_count += 1
+                # Check if the number of @param tags matches the number of function arguments
+                if param_count == len(function_args):
+                    return True
+            # If not a comment, check if it's a blank line or a code line
+            elif content[line_number].strip() == '' or content[line_number].strip().startswith('#'):
+                line_number -= 1
+            else:
+                # If it's not a comment, blank line, or code line, the comment format is incorrect
+                return False
+        # If no comment is found above the function declaration, or the number of @param tags does not match the number of arguments, the format is incorrect
+        return False
+                
     def check_naming_conventions(self):
         reserved_names = ['int', 'short', 'long', 'long long', 'float', 'double', 'long double', 'char', 'wchar_t', 'char16_t', 'char32_t', 'bool', 'void', 'enum', 'struct', 'union']
         try:
@@ -292,11 +399,11 @@ class ScriptAnalyzer:
                             logging.warning(f"Symbol with prefix '{module}::': found at line {line_number}")
                             self.counts['naming_conventions_check'] += 1
 
-                    # Check for lower-case variables/functions with reserved data types
-                    if re.match(r'^\s*(?:' + '|'.join(reserved_names) + r')\s+[a-z_]\w*\s*;', line.strip()):
-                        # Check if the variable or function name is not in lowercase
-                        if not re.match(r'^\s*(?:' + '|'.join(reserved_names) + r')\s+[a-z_]\w*\s*;', line.strip()):
-                            logging.warning(f"Variable/function not starting with lower-case letter: found at line {line_number}")
+                    # Check for lower-camel-case variables with reserved data types
+                    if re.match(r'^\s*(?:' + '|'.join(reserved_names) + r')\s+[a-z][a-zA-Z0-9]*\s*;', line.strip()):
+                        # Check if the variable name is not in lower-camel-case
+                        if not re.match(r'^\s*(?:' + '|'.join(reserved_names) + r')\s+[a-z][a-zA-Z0-9]*\s*;', line.strip()):
+                            logging.warning(f"Variable not in lower-camel-case: found at line {line_number}")
                             self.counts['naming_conventions_check'] += 1
 
                     # Check for upper-case types/classes
@@ -502,6 +609,7 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
     check_names = {
         'total_lines_check': 'Line Count Verification',
         'indentation_check': 'Indentation Consistency Inspection',
+        'function_conventions_check': 'Function Naming Standards Assessment',
         'naming_conventions_check': 'Naming Standards Assessment',
         'modularization_check': 'Module Structure Evaluation',
         'consistency_check': 'Code Uniformity Check',
@@ -552,5 +660,5 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
 # Main program
 if __name__ == "__main__":
     # Analyze the script
-    script_analyzer = ScriptAnalyzer(script_path, recipient_email, sender_email, sender_password)
+    script_analyzer = ScriptAnalyzer(script_path, recipient_email, encrypted_sender_email, encrypted_sender_password, encryption_key)
     script_analyzer.run_analysis()

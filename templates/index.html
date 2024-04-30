@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title> Script Analyzer - ALLOT </title>
+    <title> Script/Patch Analyzer - ALLOT </title>
     <!-- Styling for the page -->
     <style>
         body {
@@ -70,8 +70,10 @@
             border-radius: 5px;
             margin-top: 10px;
             overflow: hidden;
+            display: block; /* Change 'none' to 'block' or 'inline-block' */
         }
-
+        
+        /* Styling for the progress bar */
         .progress {
             width: 0%;
             height: 20px;
@@ -105,7 +107,7 @@
 </head>
 <body>
     <!-- Page heading -->
-    <h1> Script Analyzer - ALLOT </h1>
+    <h1> Script/Patch Analyzer - ALLOT </h1>
     <!-- Form for uploading a file -->
     <form id="upload-form" method="post" action="/upload" enctype="multipart/form-data">
         <!-- Input for recipient email address -->
@@ -116,8 +118,8 @@
         <!-- Select the type of file -->
         <label for="file_type">Select File Type:</label><br>
         <select id="file_type" name="file_type" required>
-            <option value="cpp">C++ Script (.cpp/.h)</option>
-            <option value="diff">Unified Diff File (.diff/.patch)</option>
+            <option value="cpp">C++/Header Script File(.cpp/.h)</option>
+            <option value="diff">Unified Diff Patch File (.diff/.patch)</option>
         </select><br><br>
 
         <!-- Input for selecting a file -->
@@ -139,8 +141,10 @@
     <!-- JavaScript for updating the progress bar and showing the popup -->
     <script>
         // Update progress bar during file upload
-        document.querySelector('form').addEventListener('submit', function(event) {
+        document.getElementById('upload-form').addEventListener('submit', function(event) {
             var progress = document.getElementById('progress');
+            progress.style.width = '0%'; // Reset progress bar
+
             var fileInput = document.getElementById('file');
             var fileName = fileInput.value;
             var fileType = document.getElementById('file_type').value;
@@ -202,6 +206,22 @@
                     popup.style.display = 'none';
                 }, 1500); // Close the popup after 1.5 seconds
             }
+        });
+
+        // Update accepted file types based on the selected file type
+        document.getElementById('file_type').addEventListener('change', function(event) {
+            var fileInput = document.getElementById('file');
+            var fileType = event.target.value;
+
+            var allowedExtensions = [];
+            if (fileType === 'cpp') {
+                allowedExtensions = ['.cpp', '.h'];
+            } else if (fileType === 'diff') {
+                allowedExtensions = ['.diff', '.patch'];
+            }
+
+            fileInput.setAttribute('accept', allowedExtensions.join(','));
+            fileInput.value = ''; // Clear file input value
         });
     </script>
 </body>

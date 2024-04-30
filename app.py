@@ -1,5 +1,6 @@
 import os
 import shutil
+import logging 
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from Script_Analyzer import ScriptAnalyzer
@@ -65,7 +66,10 @@ def upload_file():
             analyzer = ScriptAnalyzer(file_path, recipient_email, encrypted_sender_email, encrypted_sender_password, encryption_key)
             try:
                 analyzer.run_analysis()
-                flash('C++ script successfully uploaded and analyzed. Email sent successfully')
+                # Remove all handlers from the logger
+                for handler in logging.root.handlers[:]:
+                    logging.root.removeHandler(handler)
+                flash('File successfully uploaded and analyzed. Email sent successfully')
             except Exception as e:
                 flash(f'Error analyzing the C++ script and sending email: {str(e)}', 'error')
         elif filename.endswith('.diff') or filename.endswith('.patch'):
@@ -73,7 +77,10 @@ def upload_file():
             analyzer = PatchAnalyzer(file_path, recipient_email, encrypted_sender_email, encrypted_sender_password, encryption_key)
             try:
                 analyzer.run_analysis()
-                flash('Unified diff file successfully uploaded and analyzed. Email sent successfully')
+                # Remove all handlers from the logger
+                for handler in logging.root.handlers[:]:
+                    logging.root.removeHandler(handler)
+                flash('File successfully uploaded and analyzed. Email sent successfully')
             except Exception as e:
                 flash(f'Error analyzing the unified diff file and sending email: {str(e)}', 'error')
         else:

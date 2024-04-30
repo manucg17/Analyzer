@@ -28,22 +28,37 @@ class PatchAnalyzer:
             'indentation_check': 0,
             'naming_conventions_check': 0,
         }
-        logging.basicConfig(filename=self.log_file, level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(filename=self.log_file, level=logging.INFO,
+                            format='%(asctime)s - %(levelname)s - %(message)s')
+
+        def filter_out_http_requests(record):
+            message = record.getMessage()
+            if "GET /upload" in message and "HTTP/1.1" in message:
+                return False  # Do not log messages containing "GET /upload HTTP/1.1"
+            return True  # Log all other messages
+
+        # Add the filter to the logger
+        logger = logging.getLogger(__name__)
+        logger.addFilter(filter_out_http_requests)        
 
         # Initialize error count
         self.error_count = 0
 
         # Extract C++ keywords
         self.cpp_keywords = self.extract_cpp_keywords()
-
-    def get_log_file_name(self):
-        current_datetime = datetime.now().strftime("%H-%M-%S-on-%d-%m-%Y")
-        log_folder = self.script_path.parent / "Logs"
-        log_folder.mkdir(parents=True, exist_ok=True)  # Create Logs folder if it doesn't exist
-        os.chmod(log_folder, 0o777)  # Set permission to 777
-        log_file_name = f"Logs-{self.script_path.stem}-at-{current_datetime}.log"
-        return log_folder / log_file_name
-
+        
+        self.conventions = {
+            'symbol': r'^\w+::',
+            'variable_declaration': r'^\s*(?:int|short|long|float|double|char|bool|void)\s+([a-z][a-zA-Z0-9]*)\s*',
+            'variable_usage': r'^\s*([a-z][a-zA-Z0-9]*)\s*',
+            'function_declaration': r'^\s*(?:int|short|long|float|double|char|bool|void)\s+([a-z][a-zA-Z0-9]*)\(.*\)\s*',
+            'function_call': r'^\s*([a-z][a-zA-Z0-9]*)\(.*\)\s*',
+            'type_class': r'^\s*([A-Z_]*_)?[A-Z][a-zA-Z0-9]*\s*',
+            'constant': r'^\s*([A-Z_]+)\s*',
+            'global_variable': r'^\s*(g_[a-z][a-zA-Z0-9]*)\s*',
+            'member': r'^\s*(m_[a-zA-Z_][a-zA-Z0-9_]*)\s*',
+            'pointer': r'^\s*(p[a-z][a-zA-Z0-9]*)\s*(?:\*|\s\*)'
+        }
 
     def extract_cpp_keywords(self):
         # Get the lexer for C++
@@ -63,6 +78,14 @@ class PatchAnalyzer:
                 keywords.add(token_value)
 
         return keywords
+
+    def get_log_file_name(self):
+        current_datetime = datetime.now().strftime("%H-%M-%S-on-%d-%m-%Y")
+        log_folder = self.script_path.parent / "Logs"
+        log_folder.mkdir(parents=True, exist_ok=True)  # Create Logs folder if it doesn't exist
+        os.chmod(log_folder, 0o777)  # Set permission to 777
+        log_file_name = f"Logs-{self.script_path.stem}-at-{current_datetime}.log"
+        return log_folder / log_file_name
 
     def run_analysis(self):
         try:
@@ -184,7 +207,9 @@ class PatchAnalyzer:
                 # This is an added line
                 logging.debug(f"Added line: {stripped_line}")
                 self.check_patch_indentation(stripped_line, hunk_info, last_unchanged_line_indentation, previous_line)
+                self.check_excess_whitespace(line, hunk_info, previous_line)
                 self.check_patch_naming_conventions(hunk_info, hunk_lines)
+                self.check_consistency()
             elif line.startswith('-'):
                 # This is a deleted line
                 logging.debug(f"Deleted line: {stripped_line}")
@@ -201,27 +226,27 @@ class PatchAnalyzer:
 
     def check_patch_indentation(self, line, hunk_info, reference_indentation, previous_line):
         # Check the indentation of a single line in a hunk
-        # You can add more logic here to check the indentation based on the hunk_info
+        line_number = hunk_info['start_line']  # Initialize line_number with start_line
         if "\t" in line:
-            logging.warning(f"Indentation issue at line {hunk_info['start_line']}: TAB space used. Convert TABs to spaces.")
+            logging.info(f"Indentation issue at line {line_number}: TAB space used. Convert TABs to spaces.")
             self.counts['indentation_check'] += 1
 
         if "{" in line and not line.split("//")[0].strip().endswith(" {"):
-            logging.warning(f"Brace placement issue at line {hunk_info['start_line']}: Opening brace should be on the same line as the control statement and preceded by a space.")
+            logging.info(f"Brace placement issue at line {line_number}: Opening brace should be on the same line as the control statement and preceded by a space.")
             self.counts['indentation_check'] += 1
 
         if line.strip().startswith("#include"):
             if not re.match(r'^#include\s+<[^>]+>$', line.strip()):
-                logging.warning(f"Syntax issue at line {hunk_info['start_line']}: Incorrect syntax - Include.")
+                logging.info(f"Syntax issue at line {line_number}: Incorrect syntax - Include.")
 
         if line.strip().startswith("Using"):
             if not re.match(r'^Using\s+\S+::\S+;$', line.strip()):
-                logging.warning(f"Syntax issue at line {hunk_info['start_line']}: Incorrect syntax - Using.")
+                logging.info(f"Syntax issue at line {line_number}: Incorrect syntax - Using.")
 
         if line.strip().startswith("typedef"):
             if not re.match(r'^typedef\s+\S+\s+\S+;$', line.strip()):
-                logging.warning(f"Syntax issue at line {hunk_info['start_line']}: Incorrect syntax - Typedef.")
-                
+                logging.info(f"Syntax issue at line {line_number}: Incorrect syntax - Typedef.")
+                        
         control_structures = ["if", "else if", "else", "switch", "for", "while", "do", "case", "default"]
         for control_structure in control_structures:
             if line.lstrip().startswith(control_structure):
@@ -229,41 +254,41 @@ class PatchAnalyzer:
                 expected_indentation = " " * 4  # As per your company's coding standard
                 actual_indentation = len(line) - len(line.lstrip())
                 if actual_indentation != expected_indentation:
-                    logging.warning(f"Indentation issue at line {hunk_info['start_line']}: Incorrect indentation for {control_structure} statement.")
+                    logging.info(f"Indentation issue at line {line_number}: Incorrect indentation for {control_structure} statement.")
                     self.counts['indentation_check'] += 1
 
         if reference_indentation is not None and len(line) - len(line.lstrip()) != reference_indentation:
-            logging.warning(f"Indentation issue at line {hunk_info['start_line']}: Incorrect indentation.")
+            logging.info(f"Indentation issue at line {line_number}: Incorrect indentation.")
             self.counts['indentation_check'] += 1
 
         # New check: New line before the control statement
         if line.strip().startswith(tuple(control_structures)) and previous_line.strip() != '' and not previous_line.strip().startswith('//'):
-            logging.warning(f"New line issue at line {hunk_info['start_line']}: Control statement should be preceded by a new line or a comment.")
+            logging.info(f"New line issue at line {line_number}: Control statement should be preceded by a new line or a comment.")
             self.counts['indentation_check'] += 1
 
         # New check: The else keyword on the same line as the closing brace of the if statement
         if 'else' in line.strip() and '}' not in line.strip():
-            logging.warning(f"Else keyword issue at line {hunk_info['start_line']}: The else keyword should be on the same line as the closing brace of the if statement.")
+            logging.info(f"Else keyword issue at line {line_number}: The else keyword should be on the same line as the closing brace of the if statement.")
             self.counts['indentation_check'] += 1
 
         # New check: A space after the closing brackets of if considering }+ +else if/else+ +{ 
         if '}' in line.strip() and 'else' in line.strip() and not line.strip().endswith(' {'):
-            logging.warning(f"Brace placement issue at line {hunk_info['start_line']}: A space is required after the closing brace of if before else.")
+            logging.info(f"Brace placement issue at line {line_number}: A space is required after the closing brace of if before else.")
             self.counts['indentation_check'] += 1
 
         # New check: A space after the closing brackets of else if considering }+ +else if/else+ +{ 
         if '}' in line.strip() and 'else if' in line.strip() and not line.strip().endswith(' {'):
-            logging.warning(f"Brace placement issue at line {hunk_info['start_line']}: A space is required after the closing brace of else if before else.")
+            logging.info(f"Brace placement issue at line {line_number}: A space is required after the closing brace of else if before else.")
             self.counts['indentation_check'] += 1
-        
+                
         # New check: Closing brace on the next line for control statements
         if line.strip() == '}' and previous_line.strip() != '' and not previous_line.strip().endswith('{'):
-            logging.warning(f"Brace placement issue at line {hunk_info['start_line']}: Closing brace should be on the next line after the control statement.")
+            logging.info(f"Brace placement issue at line {line_number}: Closing brace should be on the next line after the control statement.")
             self.counts['indentation_check'] += 1
-            
+                    
         # New check: Check if the indentation of the changed lines is the same as the line above and below unless it is an empty line.
         if previous_line.strip() != '' and len(line) - len(line.lstrip()) != len(previous_line) - len(previous_line.lstrip()):
-            logging.warning(f"Indentation issue at line {hunk_info['start_line']}: The indentation of the changed line is not the same as the line above.")
+            logging.info(f"Indentation issue at line {line_number}: The indentation of the changed line is not the same as the line above.")
             self.counts['indentation_check'] += 1
 
         # New check: Indentation of added lines in a new block
@@ -272,56 +297,65 @@ class PatchAnalyzer:
             expected_indentation = len(previous_line) - len(previous_line.lstrip()) + 4  # Assuming 4 spaces for each indentation level
             actual_indentation = len(line) - len(line.lstrip())
             if actual_indentation != expected_indentation:
-                logging.warning(f"Indentation issue at line {hunk_info['start_line']}: Incorrect indentation for a new block.")
+                logging.info(f"Indentation issue at line {line_number}: Incorrect indentation for a new block.")
                 self.counts['indentation_check'] += 1
 
         # New check: No leading spaces other than the correct indentation
         if line.startswith(' '):
             expected_indentation = ' ' * (len(line) - len(line.lstrip()))  # Assuming spaces for indentation
             if not line.startswith(expected_indentation):
-                logging.warning(f"Spacing issue at line {hunk_info['start_line']}: Extra leading spaces found.")
+                logging.info(f"Spacing issue at line {line_number}: Extra leading spaces found.")
                 self.counts['indentation_check'] += 1
 
         # New check: No trailing spaces
         if line.rstrip() != line:
-            logging.warning(f"Spacing issue at line {hunk_info['start_line']}: Trailing spaces found.")
+            logging.info(f"Spacing issue at line {line_number}: Trailing spaces found.")
             self.counts['indentation_check'] += 1
 
         # New check: No more than one space between consecutive words in a line unless it is a commented line or it is in between ""
         if '  ' in line and not line.strip().startswith('//') and not re.search(r'".*  .*"', line):
-            logging.warning(f"Spacing issue at line {hunk_info['start_line']}: Multiple spaces between words found.")
-            self.counts['indentation_check'] += 1
-
-        # New check: No more than one space between consecutive words in a line unless it is a comment or it is in between ""
-        if '  ' in line and not (line.strip().startswith('//') or line.strip().startswith('/*') or line.strip().endswith('*/') or re.search(r'".*  .*"', line)):
-            logging.warning(f"Spacing issue at line {hunk_info['start_line']}: Multiple spaces between words found.")
+            logging.info(f"Spacing issue at line {line_number}: Multiple spaces between words found.")
             self.counts['indentation_check'] += 1
 
         # New check: No multiple new lines
         if line.strip() == '' and previous_line.strip() == '':
-            logging.warning(f"New line issue at line {hunk_info['start_line']}: Multiple consecutive new lines found.")
+            logging.info(f"New line issue at line {line_number}: Multiple consecutive new lines found.")
             self.counts['indentation_check'] += 1
-            
-        # New check: Opening brace on the next line for function definitions
-        if self.is_function_definition(previous_line) and line.strip() != '{':
-            logging.warning(f"Brace placement issue at line {hunk_info['start_line']}: Opening brace of function definition should be on the next line.")
-            self.counts['indentation_check'] += 1
+                    
+    def check_excess_whitespace(self, line, hunk_info, previous_line):
+        # Check for excess white space in a line
+        line_number = hunk_info['start_line']  # Initialize line_number with start_line
+
+        # Check for tabs
+        if "\t" in line:
+            logging.info(f"Indentation issue at line {line_number}: TAB space used. Convert TABs to spaces.")
+            self.counts['whitespace_check'] += 1
+
+        # Check for multiple spaces between words
+        if '  ' in line and not line.strip().startswith('//') and not re.search(r'".*  .*"', line):
+            logging.info(f"Spacing issue at line {line_number}: Multiple spaces between words found.")
+            self.counts['whitespace_check'] += 1
+
+        # Check for trailing spaces
+        if line.rstrip() != line:
+            logging.info(f"Spacing issue at line {line_number}: Trailing spaces found.")
+            self.counts['whitespace_check'] += 1
+
+        # Check for multiple consecutive new lines
+        if line.strip() == '' and previous_line.strip() == '':
+            logging.info(f"New line issue at line {line_number}: Multiple consecutive new lines found.")
+            self.counts['whitespace_check'] += 1
+
+        # Check for leading spaces other than the correct indentation
+        if line.startswith(' '):
+            expected_indentation = ' ' * (len(line) - len(line.lstrip()))  # Assuming spaces for indentation
+            if not line.startswith(expected_indentation):
+                logging.info(f"Spacing issue at line {line_number}: Extra leading spaces found.")
+                self.counts['whitespace_check'] += 1
+
+        return self.counts['whitespace_check']
 
     def check_patch_naming_conventions(self, hunk_info, hunk_lines):
-        # Define the naming conventions
-        conventions = {
-            'symbol': r'^\w+::',
-            'variable_declaration': r'^\s*(?:int|short|long|float|double|char|bool|void)\s+([a-z][a-zA-Z0-9]*)\s*',
-            'variable_usage': r'^\s*([a-z][a-zA-Z0-9]*)\s*',
-            'function_declaration': r'^\s*(?:int|short|long|float|double|char|bool|void)\s+([a-z][a-zA-Z0-9]*)\(.*\)\s*',
-            'function_call': r'^\s*([a-z][a-zA-Z0-9]*)\(.*\)\s*',
-            'type_class': r'^\s*([A-Z_]*_)?[A-Z][a-zA-Z0-9]*\s*',
-            'constant': r'^\s*([A-Z_]+)\s*',
-            'global_variable': r'^\s*(g_[a-z][a-zA-Z0-9]*)\s*',
-            'member': r'^\s*(m_[a-zA-Z_][a-zA-Z0-9_]*)\s*',
-            'pointer': r'^\s*(p[a-z][a-zA-Z0-9]*)\s*(?:\*|\s\*)'
-        }
-
         # Filter out lines that contain C++ keywords
         filtered_lines = [line for line in hunk_lines if not any(keyword in line for keyword in self.cpp_keywords)]
 
@@ -333,13 +367,34 @@ class PatchAnalyzer:
                 stripped_line = line[1:].strip()
 
                 # Check each naming convention
-                for name, pattern in conventions.items():
+                for name, pattern in self.conventions.items():
                     match = re.match(pattern, stripped_line)
                     if match:
                         variable_name = match.group(1)
-                        logging.warning(f"{name} naming convention check is not satisfied for '{variable_name}' at line {line_number}")
+                        logging.info(f"{name} naming convention check is not satisfied for '{variable_name}' at line {line_number}")
                         self.counts['naming_conventions_check'] += 1
+                        break  # Break out of the loop after finding a match
+    def check_consistency(self):
+        try:
+            with open(self.script_path, "r") as patch_file:
+                # Read the contents of the patch file
+                patch_content = patch_file.read()
 
+            # Check for consistent use of tabs or spaces for indentation
+            if "\t" in patch_content and "    " in patch_content:
+                logging.info("Consistency issue: Inconsistent use of tabs and spaces for indentation.")
+                self.counts['consistency_check'] += 1
+
+            # Check for consistent line endings (CRLF or LF)
+            if "\r\n" in patch_content and "\n" in patch_content:
+                logging.info("Consistency issue: Inconsistent line endings (CRLF and LF).")
+                self.counts['consistency_check'] += 1
+
+        except FileNotFoundError:
+            logging.error(f"Patch file not found: {self.script_path}")
+        except Exception as e:
+            logging.error(f"Error checking consistency: {str(e)}")
+                    
 def send_email(sender_email, sender_password, recipient_email, attachment_path, counts):
     # Create a multipart message
     message = MIMEMultipart()
@@ -363,7 +418,9 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
     # Define a dictionary to map the check names to more understandable terms
     check_names = {
         'indentation_check': 'Indentation Consistency Inspection',
+        'whitespace_check': 'Whitespace Reduction Analysis',
         'naming_conventions_check': 'Naming Standards Assessment',
+        'consistency_check': 'Code Uniformity Check',
     }
 
     for check, count in counts.items():
@@ -409,5 +466,5 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
 # Main program
 if __name__ == "__main__":
     # Analyze the script
-    patch_analyzer = PatchAnalyzer(script_path, recipient_email, sender_email, sender_password)
+    patch_analyzer = PatchAnalyzer(script_path, recipient_email, encrypted_sender_email, encrypted_sender_password, encryption_key)
     patch_analyzer.run_analysis()
