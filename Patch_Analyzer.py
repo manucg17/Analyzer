@@ -2,6 +2,7 @@ import re
 import os
 import logging
 import smtplib
+import socket
 from pathlib import Path
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
@@ -26,15 +27,20 @@ class PatchAnalyzer:
         self.encryption_key = encryption_key
         self.counts = {
             'indentation_check': 0,
+            'whitespace_check':0,
             'naming_conventions_check': 0,
+            'consistency_check':0
         }
         logging.basicConfig(filename=self.log_file, level=logging.INFO,
                             format='%(asctime)s - %(levelname)s - %(message)s')
 
-        def filter_out_http_requests(record):
+        def filter_out_http_requests(self, record):
+            server_ip = socket.gethostbyname(socket.gethostname())
             message = record.getMessage()
             if "GET /upload" in message and "HTTP/1.1" in message:
                 return False  # Do not log messages containing "GET /upload HTTP/1.1"
+            if f"{server_ip} - -" in message:  # Replace the hardcoded IP address with the server's IP address
+                return False  # Do not log messages containing the server's IP address
             return True  # Log all other messages
 
         # Add the filter to the logger
@@ -140,36 +146,63 @@ class PatchAnalyzer:
         summary += "---------------------------------------------\n"
         with open(self.log_file, 'a') as log_file:
             log_file.write(summary)
-
+    
+    def parse_hunk_header(self, hunk_header_line):
+        """Parse the hunk header to get the start line."""
+        # Split the hunk header line by space
+        parts = hunk_header_line.split(' ')
+        # The start line is the second part after the '@@'
+        start_line = int(parts[1].split(',')[0][1:])  # Remove the leading '+' or '-' sign
+        return {"start_line": start_line}
+    
+    def extract_hunk_files(self, hunk_header_line):
+        """Extract file extensions from the hunk header line."""
+        # Split the hunk header line by ' a/' and ' b/' to get the file paths
+        files = re.split(' a/| b/', hunk_header_line)[1:]
+        # Get the file extensions
+        return [os.path.splitext(file)[1] for file in files]
+    
     def process_patch_file(self):
         try:
             with open(self.script_path, "r") as patch_file:
-                # Read the contents of the patch file
                 patch_content = patch_file.readlines()
 
-            # Initialize variables to keep track of the current hunk
-            current_hunk = None
-            current_hunk_lines = []
+                # Initialize variables to keep track of the current hunk
+                current_hunk = None
+                current_hunk_lines = []
+                process_current_hunk = False  # Variable to decide whether to process the current hunk
+                current_file = None  # Variable to store the current file name
 
-            # Process each line in the patch content
-            for line in patch_content:
-                # Check if the line is the start of a new hunk
-                if line.startswith('@@'):
-                    # If we have a current hunk, process it
-                    if current_hunk is not None:
-                        self.process_hunk(current_hunk, current_hunk_lines)
-                        current_hunk_lines = []
+                # Process each line in the patch content
+                for line in patch_content:
+                    if line.startswith("diff --git"):
+                        # If we have a current hunk, process it
+                        if current_hunk is not None and process_current_hunk:
+                            self.process_hunk(current_hunk, current_hunk_lines, current_file)
+                            current_hunk_lines = []
 
-                    # Parse the new hunk information
-                    current_hunk = self.parse_hunk_header(line)
-                else:
-                    # Add the line to the current hunk's lines
+                        # Check file extensions in the hunk header
+                        hunk_files = self.extract_hunk_files(line)
+                        process_current_hunk = any(ext in (".cpp", ".h") for ext in hunk_files)
+
+                        # Extract the file name from the hunk header
+                        current_file = hunk_files[1]  # The second file is the new file
+
+                    elif line.startswith('@@'):
+                        # Parse the new hunk information
+                        current_hunk = self.parse_hunk_header(line)
+
+                    # Add the line to the current hunk's lines regardless of the file type
                     current_hunk_lines.append(line.strip())
 
-            # Process the last hunk if it exists
-            if current_hunk is not None:
-                self.process_hunk(current_hunk, current_hunk_lines)
-                
+                # Process the last hunk if it exists
+                if current_hunk is not None and process_current_hunk:
+                    self.process_hunk(current_hunk, current_hunk_lines, current_file)
+
+                # Check if no relevant files were found
+                if not current_hunk and not line.startswith("diff --git"):
+                    logging.info("No .cpp or .h files found for analysis in the patch.")
+
         except FileNotFoundError:
             logging.error(f"Patch file not found: {self.script_path}")
         except IndexError as e:
@@ -179,13 +212,7 @@ class PatchAnalyzer:
         except Exception as e:
             logging.error(f"Error processing patch file: {str(e)}")
 
-    def parse_hunk_header(self, hunk_header):
-        # Parse the hunk header to get the start line
-        parts = hunk_header.split(' ')
-        start_line = int(parts[1].split(',')[0][1:])  # Remove the leading '+' or '-' sign
-        return {"start_line": start_line}
-
-    def process_hunk(self, hunk_info, hunk_lines):
+    def process_hunk(self, hunk_info, hunk_lines, file_name):
         # Process the hunk to identify if lines are added, deleted, or modified
         comment_depth = 0
         last_unchanged_line_indentation = None
@@ -205,17 +232,17 @@ class PatchAnalyzer:
 
             if line.startswith('+'):
                 # This is an added line
-                logging.debug(f"Added line: {stripped_line}")
+                logging.debug(f"Added line in {file_name}: {stripped_line}")
                 self.check_patch_indentation(stripped_line, hunk_info, last_unchanged_line_indentation, previous_line)
                 self.check_excess_whitespace(line, hunk_info, previous_line)
                 self.check_patch_naming_conventions(hunk_info, hunk_lines)
                 self.check_consistency()
             elif line.startswith('-'):
                 # This is a deleted line
-                logging.debug(f"Deleted line: {stripped_line}")
+                logging.debug(f"Deleted line in {file_name}: {stripped_line}")
             else:
                 # This is an unchanged line
-                logging.debug(f"Unchanged line: {stripped_line}")
+                logging.debug(f"Unchanged line in {file_name}: {stripped_line}")
                 last_unchanged_line_indentation = len(line) - len(line.lstrip())
             previous_line = line
             
@@ -226,7 +253,7 @@ class PatchAnalyzer:
 
     def check_patch_indentation(self, line, hunk_info, reference_indentation, previous_line):
         # Check the indentation of a single line in a hunk
-        line_number = hunk_info['start_line']  # Initialize line_number with start_line
+        line_number = hunk_info['start_line'] # Initialize line_number with start_line
         if "\t" in line:
             logging.info(f"Indentation issue at line {line_number}: TAB space used. Convert TABs to spaces.")
             self.counts['indentation_check'] += 1
@@ -325,12 +352,6 @@ class PatchAnalyzer:
     def check_excess_whitespace(self, line, hunk_info, previous_line):
         # Check for excess white space in a line
         line_number = hunk_info['start_line']  # Initialize line_number with start_line
-
-        # Check for tabs
-        if "\t" in line:
-            logging.info(f"Indentation issue at line {line_number}: TAB space used. Convert TABs to spaces.")
-            self.counts['whitespace_check'] += 1
-
         # Check for multiple spaces between words
         if '  ' in line and not line.strip().startswith('//') and not re.search(r'".*  .*"', line):
             logging.info(f"Spacing issue at line {line_number}: Multiple spaces between words found.")
@@ -353,8 +374,6 @@ class PatchAnalyzer:
                 logging.info(f"Spacing issue at line {line_number}: Extra leading spaces found.")
                 self.counts['whitespace_check'] += 1
 
-        return self.counts['whitespace_check']
-
     def check_patch_naming_conventions(self, hunk_info, hunk_lines):
         # Filter out lines that contain C++ keywords
         filtered_lines = [line for line in hunk_lines if not any(keyword in line for keyword in self.cpp_keywords)]
@@ -374,6 +393,7 @@ class PatchAnalyzer:
                         logging.info(f"{name} naming convention check is not satisfied for '{variable_name}' at line {line_number}")
                         self.counts['naming_conventions_check'] += 1
                         break  # Break out of the loop after finding a match
+                    
     def check_consistency(self):
         try:
             with open(self.script_path, "r") as patch_file:
@@ -414,7 +434,6 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
     table = "<table style='border-collapse: collapse; border: 4px solid black; width: 50%; background-color: #F0F0F0; margin-left: auto; margin-right: auto;'>"
     table += "<tr><th style='border: 2px solid black; padding: 15px; text-align: left; background-color: #ADD8E6; color: black;'><b>Code Quality Metric</b></th><th style='border: 2px solid black; padding: 15px; text-align: center; background-color: #ADD8E6; color: black; padding-left: 10px; padding-right: 10px;'><b>Anomaly Frequency</b></th></tr>"
     
-
     # Define a dictionary to map the check names to more understandable terms
     check_names = {
         'indentation_check': 'Indentation Consistency Inspection',
@@ -463,7 +482,6 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
     session.sendmail(sender_email, recipient_email, text)  # Send email
     session.quit()  # Terminate the session
 
-# Main program
 if __name__ == "__main__":
     # Analyze the script
     patch_analyzer = PatchAnalyzer(script_path, recipient_email, encrypted_sender_email, encrypted_sender_password, encryption_key)
