@@ -161,3 +161,4 @@ cython_debug/
 
 #enryption
 encryption.key
+.env
