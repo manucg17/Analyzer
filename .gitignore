@@ -162,3 +162,8 @@ cython_debug/
 #enryption
 encryption.key
 .env
+Dockerfile
+requirements.txt
+README.md
+ALLOT_Team_Input/
+Uploads/
