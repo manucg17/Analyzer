@@ -124,7 +124,7 @@
 
         <!-- Input for selecting a file -->
         <label for="file">Select File:</label><br>
-        <input type="file" id="file" name="file" accept=".cpp,.h,.diff,.patch" required><br><br>
+        <input type="file" id="file" name="file" accept="" required><br><br>
 
         <!-- Submit button to upload the file -->
         <input type="submit" value="Submit">
@@ -140,6 +140,28 @@
 
     <!-- JavaScript for updating the progress bar and showing the popup -->
     <script>
+        // Update accepted file types based on the selected file type
+        function updateFileTypes() {
+            var fileInput = document.getElementById('file');
+            var fileType = document.getElementById('file_type').value;
+
+            var allowedExtensions = [];
+            if (fileType === 'cpp') {
+                allowedExtensions = ['.cpp', '.h'];
+            } else if (fileType === 'diff') {
+                allowedExtensions = ['.diff', '.patch'];
+            }
+
+            fileInput.setAttribute('accept', allowedExtensions.join(','));
+            fileInput.value = ''; // Clear file input value
+        }
+
+        // Trigger updateFileTypes function on page load
+        window.addEventListener('load', updateFileTypes);
+
+        // Trigger updateFileTypes function on file type select change
+        document.getElementById('file_type').addEventListener('change', updateFileTypes);
+
         // Update progress bar during file upload
         document.getElementById('upload-form').addEventListener('submit', function(event) {
             var progress = document.getElementById('progress');
@@ -206,22 +228,6 @@
                     popup.style.display = 'none';
                 }, 1500); // Close the popup after 1.5 seconds
             }
-        });
-
-        // Update accepted file types based on the selected file type
-        document.getElementById('file_type').addEventListener('change', function(event) {
-            var fileInput = document.getElementById('file');
-            var fileType = event.target.value;
-
-            var allowedExtensions = [];
-            if (fileType === 'cpp') {
-                allowedExtensions = ['.cpp', '.h'];
-            } else if (fileType === 'diff') {
-                allowedExtensions = ['.diff', '.patch'];
-            }
-
-            fileInput.setAttribute('accept', allowedExtensions.join(','));
-            fileInput.value = ''; // Clear file input value
         });
 
         document.getElementById('file').addEventListener('change', function() {
