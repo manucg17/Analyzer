@@ -16,5 +16,8 @@ COPY . .
 # Expose the port the app runs on
 EXPOSE 80
 
+# Set environment variables file path
+ENV ENV_FILE_PATH=/app/.env
+
 # Define the command to run the application
 CMD ["python", "app.py"]

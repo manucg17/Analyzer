@@ -73,9 +73,9 @@ class ScriptAnalyzer:
     def run_analysis(self):
         try:
             # Print start of script analysis
-            print("Starting Script Analysis.")
+            print(f"Starting Script Analysis of {self.script_path}.")
             # Creating Log with Analysis in Log Directory
-            logging.info("Starting Script Analysis.")
+            logging.info(f"Starting Script Analysis of {self.script_path}.")
 
             # Check for mandatory #include directive
             self.check_include_directive()
@@ -95,17 +95,14 @@ class ScriptAnalyzer:
                 except Exception as e:
                     logging.error(f"Error during Function syntax check: {str(e)}")
 
-            # Check for mandatory #include directive
-            self.check_include_directive()
-
             try:
-                # Check script indentation
+                # Check total lines
                 self.check_total_lines()
             except Exception as e:
                 logging.error(f"Error during total lines check: {str(e)}")
 
             try:
-                # Check script indentation
+                # Check indentation
                 self.check_indentation()
             except Exception as e:
                 logging.error(f"Error during indentation check: {str(e)}")
@@ -138,9 +135,9 @@ class ScriptAnalyzer:
                 logging.error(f"Error during whitespace check: {str(e)}")
 
             # Print summary of the analysis results
-            print("Script Analysis completed.")
+            print(f"Script Analysis of {self.script_path} completed.")
             # Creating Log with Analysis in Log Directory
-            logging.info("Script Analysis completed.")
+            logging.info(f"Script Analysis of {self.script_path} completed.")
 
             # Add summary table to log
             self.add_summary_to_log()
@@ -150,12 +147,13 @@ class ScriptAnalyzer:
             sender_password = self.sender_password
             recipient_email = self.recipient_email
             attachment_path = self.log_file
-            send_email(sender_email, sender_password, recipient_email, attachment_path, self.counts)
+            send_email(sender_email, sender_password, recipient_email, attachment_path, self.counts, self.script_path.stem)
 
         except Exception as e:
             logging.error(f"Error during analysis: {str(e)}")
             self.error_count += 1
             logging.error(f"Error count: {self.error_count}")  # Log the error count
+
 
     def add_summary_to_log(self):
         summary = "\n\n---------------------------------------------\n"
@@ -585,7 +583,7 @@ class ScriptAnalyzer:
         except Exception as e:
             logging.error(f"Error during excess whitespace check: {str(e)}")
 
-def send_email(sender_email, sender_password, recipient_email, attachment_path, counts):
+def send_email(sender_email, sender_password, recipient_email, attachment_path, counts, script_name):
     # Create a multipart message
     message = MIMEMultipart()
     message['From'] = sender_email
@@ -593,7 +591,7 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
 
     # Get the current date and format it as desired
     current_date = datetime.now().strftime('%d-%m-%Y')
-    subject = f"Script Analysis Log - {current_date}"
+    subject = f"Script Analysis Log  - {script_name} - {current_date}"
     message['Subject'] = subject
 
     # Add body to email
@@ -604,7 +602,6 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
     table = "<table style='border-collapse: collapse; border: 4px solid black; width: 50%; background-color: #F0F0F0; margin-left: auto; margin-right: auto;'>"
     table += "<tr><th style='border: 2px solid black; padding: 15px; text-align: left; background-color: #ADD8E6; color: black;'><b>Code Quality Metric</b></th><th style='border: 2px solid black; padding: 15px; text-align: center; background-color: #ADD8E6; color: black; padding-left: 10px; padding-right: 10px;'><b>Anomaly Frequency</b></th></tr>"
     
-
     # Define a dictionary to map the check names to more understandable terms
     check_names = {
         'total_lines_check': 'Line Count Verification',

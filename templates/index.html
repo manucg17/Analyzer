@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title> Script/Patch Analyzer - ALLOT </title>
+    <title>Script Analyzer - ALLOT</title>
     <!-- Styling for the page -->
-    <style>
+    <style>        
         body {
             background-color: #2c3e50; /* Dark blue background */
             color: #ecf0f1; /* Light text color */
@@ -16,24 +16,27 @@
             color: #3498db; /* Blue heading color */
             text-align: center;
             margin-top: 20px;
+            font-size: 2em; /* Larger font size */
+            font-weight: bold; /* Bold font weight */
+            text-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
         }
 
         form {
-            max-width: 500px;
+            max-width: 450px;
             margin: 20px auto;
-            padding: 20px;
-            background-color: #34495e; /* Darker blue form background */
+            padding: 60px;
+            background-color: #555555;
             border-radius: 5px;
+            box-shadow: 15px 15px 15px rgba(0, 0, 0, 0.5);
         }
 
         label {
-            color: #ecf0f1; /* Light label text color */
+            color: #ecf0f1; 
         }
 
         input[type="email"],
-        input[type="file"],
-        input[type="submit"],
-        select {
+        select,
+        input[type="file"] {
             width: 100%;
             padding: 10px;
             margin-top: 5px;
@@ -44,9 +47,20 @@
         }
 
         input[type="submit"] {
+            width: 36%;
+            padding: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-top: 5px;
+            margin-bottom: -30px;
+            box-sizing: border-box;
+            border: none;
+            border-radius: 3px;
+            display: inline-block; /* Ensure the button is displayed as an inline block */
             background-color: #3498db; /* Blue submit button */
             color: #ecf0f1; /* Light text color */
             cursor: pointer;
+            box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.5);
         }
 
         input[type="submit"]:hover {
@@ -72,7 +86,7 @@
             overflow: hidden;
             display: block; /* Change 'none' to 'block' or 'inline-block' */
         }
-        
+
         /* Styling for the progress bar */
         .progress {
             width: 0%;
@@ -95,39 +109,58 @@
             z-index: 9999;
             display: none;
         }
+
         .success {
             color: green;
             font-weight: bold;
         }
+
         .error {
             color: red;
             font-weight: bold;
+        }
+
+        /* Display "Select File" label and file input button inline */
+        .file-input {
+            display: inline-block;
+            margin-top: 5px;
+            margin-right: 10px; /* Add margin between label and button */
+        }
+
+        /* Style the Choose File button */
+        #file {
+            display: inline-block;
+            width: calc(64% - 10px); /* Adjust width to fit on the same line */
         }
     </style>
 </head>
 <body>
     <!-- Page heading -->
-    <h1> Script/Patch Analyzer - ALLOT </h1>
+    <h1>Script Analyzer - ALLOT</h1>
     <!-- Form for uploading a file -->
     <form id="upload-form" method="post" action="/upload" enctype="multipart/form-data">
         <!-- Input for recipient email address -->
-        <label for="recipient_email">Recipient Email Address:</label><br>
+        <label for="recipient_email" style="font-weight: bold; font-size: 1.1em; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);">Recipient Email Address:</label><br>
         <input type="email" id="recipient_email" name="recipient_email" pattern="[a-zA-Z0-9._%+-]+@(thinkpalm\.com|allot\.com)$" title="Please enter a valid email from the Thinkpalm or ALLOT domain" required><br>
-        <small id="email-error" style="display:none; color:red;">Expected Email domain is example@thinkpalm.com or example@allot.com</small><br><br>
+        <small id="email-error" style="display:none; color:red;">Expected Email domain is example@thinkpalm.com or example@allot.com</small><br>
 
         <!-- Select the type of file -->
-        <label for="file_type">Select File Type:</label><br>
+        <label for="file_type" style="font-weight: bold; font-size: 1.1em; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);">Select File Type:</label><br>
         <select id="file_type" name="file_type" required>
-            <option value="cpp">C++/Header Script File(.cpp/.h)</option>
-            <option value="diff">Unified Diff Patch File (.diff/.patch)</option>
-        </select><br><br>
+            <option value="cpp">C++/Header Script File</option>
+            <option value="diff">Unified Diff Patch File</option>
+        </select><br>
 
         <!-- Input for selecting a file -->
-        <label for="file">Select File:</label><br>
-        <input type="file" id="file" name="file" accept="" required><br><br>
+        <div class="file-input">
+            <label for="file" style="font-weight: bold; font-size: 1.1em; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);">Select File:</label>
+            <input type="file" id="file" name="file" accept="" required>
+        </div><br><br>
 
-        <!-- Submit button to upload the file -->
-        <input type="submit" value="Submit">
+        <!-- Submit button wrapper -->
+        <div style="text-align: center;">
+            <input type="submit" value="Submit">
+        </div>
 
         <!-- Label and progress bar for file upload progress -->
         <label id="progress_label" style="display: none;">Uploading...</label>
@@ -204,7 +237,7 @@
             });
             xhr.upload.addEventListener('load', function(e) {
                 // File upload completed, show success popup
-                showPopup("File Uploaded Successfully - Analyzed and Email Sent", false);
+                showPopup("File Uploaded Successfully for Analysis", false);
                 // Simulate sending email (1.5s delay)
                 setTimeout(function() {
                     showPopup("Successful!", false);
