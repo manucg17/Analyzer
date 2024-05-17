@@ -488,7 +488,8 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
         message['Subject'] = subject
         
         body = body = f"Hello {recipient_user},<br><br>"
-        body += "Please find attached the log file for the script analysis.<br><br>"
+        body += "Please find attached the log file for the script analysis.<br>"
+        body += "<b><font size='4.5' color='#000000'>File Type: </font></b>Unified Diff Patch File<br><br>"
         body += "<u><b><font size='4.5' color='#000000'>Summary:</font></b></u><br><br>"
 
         # Create a table for counts with added CSS for better styling
