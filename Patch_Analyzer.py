@@ -48,11 +48,11 @@ class PatchAnalyzer:
         self.cpp_keywords = self.extract_cpp_keywords()
         
         self.conventions = {
-            'symbol': r'^\w+::',
-            'variable_declaration': r'^\s*(?:int|short|long|float|double|char|bool|void)\s+([a-z][a-zA-Z0-9]*)\s*',
-            'variable_usage': r'^\s*([a-z][a-zA-Z0-9]*)\s*',
+            'constructor': r'^\s*\w+::\w+\s*\([a-zA-Z0-9]*\)?(\s\:\sm_[a-zA-Z0-9_]*\([a-zA-Z0-9_]*\))?(\,\sm_[a-zA-Z0-9_]*\([a-zA-Z0-9_]*\)?){0,7}',
             'function_declaration': r'^\s*(?:int|short|long|float|double|char|bool|void)\s+([a-z][a-zA-Z0-9]*)\(.*\)\s*',
             'function_call': r'^\s*([a-z][a-zA-Z0-9]*)\(.*\)\s*',
+            'variable_declaration': r'^\s*(?:int|short|long|float|double|char|bool|void)\s+([a-z][a-zA-Z0-9]*)\s*',
+            'variable_usage': r'^\s*([a-z][a-zA-Z0-9]*)\s*',
             'type_class': r'^\s*([A-Z_]*_)?[A-Z][a-zA-Z0-9]*\s*',
             'constant': r'^\s*([A-Z_]+)\s*',
             'global_variable': r'^\s*(g_[a-z][a-zA-Z0-9]*)\s*',
@@ -162,12 +162,10 @@ class PatchAnalyzer:
         start_line = int(parts[1].split(',')[0][1:])  # Remove the leading '+' or '-' sign
         return {"start_line": start_line}
 
-    def extract_hunk_files(self, hunk_header_line):
-        """Extract file extensions from the hunk header line."""
-        # Split the hunk header line by ' a/' and ' b/' to get the file paths
-        files = re.split(' a/| b/', hunk_header_line)[1:]
-        # Get the file extensions
-        return [os.path.splitext(file)[1] for file in files]
+    def parse_hunk_header(self, hunk_header_line):
+        parts = hunk_header_line.split(' ')
+        start_line = int(parts[1].split(',')[0][1:])
+        return {"start_line": start_line}
 
     def process_patch_file(self):
         try:
@@ -180,6 +178,7 @@ class PatchAnalyzer:
                 process_current_hunk = False  # Variable to decide whether to process the current hunk
                 current_file = None  # Variable to store the current file name
                 cpp_or_h_found = False  # Flag to check if a .cpp or .h file is found
+                logged_files = set()  # Set to track already logged file names
 
                 # Process each line in the patch content
                 for line in patch_content:
@@ -189,16 +188,25 @@ class PatchAnalyzer:
                             self.process_hunk(current_hunk, current_hunk_lines, current_file)
                             current_hunk_lines = []
 
-                        # Check file extensions in the hunk header
-                        hunk_files = self.extract_hunk_files(line)
-                        process_current_hunk = any(ext in (".cpp", ".h") for ext in hunk_files)
+                        # Directly extract file paths from the diff line
+                        parts = line.split()
+                        if len(parts) >= 3:
+                            old_file = parts[2][2:]  # Remove 'a/' prefix
+                            new_file = parts[3][2:]  # Remove 'b/' prefix
+                            old_file_ext = os.path.splitext(old_file)[1]
+                            new_file_ext = os.path.splitext(new_file)[1]
 
-                        # Set the flag to True if a .cpp or .h file is found
-                        if process_current_hunk:
-                            cpp_or_h_found = True
+                            process_current_hunk = any(ext in (".cpp", ".h") for ext in [old_file_ext, new_file_ext])
 
-                        # Extract the file name from the hunk header
-                        current_file = hunk_files[1]  # The second file is the new file
+                            # Set the flag to True if a .cpp or .h file is found
+                            if process_current_hunk:
+                                cpp_or_h_found = True
+
+                            # Use the new file name
+                            current_file = new_file
+                        else:
+                            logging.error(f"Unexpected hunk header format: {line}")
+                            continue  # Skip this hunk and move on to the next one
 
                     elif line.startswith('@@'):
                         # Parse the new hunk information
@@ -206,6 +214,13 @@ class PatchAnalyzer:
 
                     # Add the line to the current hunk's lines regardless of the file type
                     current_hunk_lines.append(line.strip())
+                    
+                    # Log the file name from each hunk if it has not been logged before
+                    if current_file and current_file not in logged_files:
+                        file_ext = os.path.splitext(current_file)[1]
+                        if file_ext in ('.cpp', '.h'):
+                            logging.info(f"---- DIFF File Analyzed is: {current_file} ----")
+                            logged_files.add(current_file)
 
                 # Process the last hunk if it exists
                 if current_hunk is not None and process_current_hunk:
@@ -429,13 +444,16 @@ class PatchAnalyzer:
 
                 # Check each naming convention
                 for name, pattern in self.conventions.items():
-                    match = re.match(pattern, stripped_line)
-                    if match:
-                        variable_name = match.group(1)
-                        # Add the failed check to the dictionary
-                        if line_number not in failed_checks:
-                            failed_checks[line_number] = {'variable_name': variable_name, 'failed_checks': []}
-                        failed_checks[line_number]['failed_checks'].append(name)
+                    try:
+                        match = re.match(pattern, stripped_line)
+                        if match:
+                            variable_name = match.group(1)
+                            # Add the failed check to the dictionary
+                            if line_number not in failed_checks:
+                                failed_checks[line_number] = {'variable_name': variable_name, 'failed_checks': []}
+                            failed_checks[line_number]['failed_checks'].append(name)
+                    except IndexError:
+                        logging.error(f"IndexError: no such group. Line: {stripped_line}, Pattern: {pattern}")
 
         # Log the failed checks
         for line_number, info in failed_checks.items():
@@ -538,7 +556,50 @@ def send_email(sender_email, sender_password, recipient_email, attachment_path, 
         body = f"Hello {recipient_user},<br><br>"
         body += "We noticed that the patch/diff file you provided doesn't contain any .cpp or .h files. Currently, our ScriptAnalyzer is designed to analyze only these types of files.<br><br>"
         body += "We appreciate your understanding. If you have any .cpp or .h files that need analysis, feel free to send them our way.<br><br>Regards<br>ScriptAnalyzer-QA<br>"
+        body += "<b><font size='4.5' color='#000000'>File Type: </font></b>Unified Diff Patch File<br><br>"
+        body += "<u><b><font size='4.5' color='#000000'>Summary:</font></b></u><br><br>"
 
+        # Create a table for counts with added CSS for better styling
+        table = "<table style='border-collapse: collapse; border: 4px solid black; width: 50%; background-color: #F0F0F0; margin-left: auto; margin-right: auto;'>"
+        table += "<tr><th style='border: 2px solid black; padding: 15px; text-align: left; background-color: #ADD8E6; color: black;'><b>Code Quality Metric</b></th><th style='border: 2px solid black; padding: 15px; text-align: center; background-color: #ADD8E6; color: black; padding-left: 10px; padding-right: 10px;'><b>Anomaly Frequency</b></th></tr>"
+        
+        # Define a dictionary to map the check names to more understandable terms
+        check_names = {
+            'indentation_check': 'Indentation Consistency Inspection',
+            'whitespace_check': 'Whitespace Reduction Analysis',
+            'naming_conventions_check': 'Naming Standards Assessment',
+            'consistency_check': 'Code Uniformity Check',
+        }
+
+        for check, count in counts.items():
+            # Replace the check name with the corresponding term in the email body
+            check_name = check_names.get(check, check)
+            table += f"<tr><td style='border: 2px solid black; padding: 15px; text-align: left;'>{check_name}</td><td style='border: 2px solid black; padding: 15px; text-align: center;'>{count}</td></tr>"  # Reduce the cell size of the counts column, change the border color to black, increase the padding to 15px, and left-align the text in the first column
+        table += "</table>"
+
+        # Adding Table to the Message body
+        body += table
+
+        # Add a couple of line breaks and the desired text
+        body += "<br><br>Please Refer to the Attached Log for the detailed Analysis<br><br>Regards<br>ScriptAnalyzer-QA<br>"
+        # Open the file to be sent  
+        filename = os.path.basename(attachment_path)
+        attachment = open(attachment_path, "rb")
+
+        # Instance of MIMEBase and named as p
+        p = MIMEBase('application', 'octet-stream')
+
+        # To change the payload into encoded form
+        p.set_payload((attachment).read())
+
+        # encode into base64
+        encoders.encode_base64(p)
+
+        p.add_header('Content-Disposition', "attachment; filename= %s" % filename)  # Use filename instead of attachment_path
+
+        # attach the instance 'p' to instance 'msg'
+        message.attach(p)
+        
     message.attach(MIMEText(body, 'html'))
 
     # Create SMTP session for sending the mail
