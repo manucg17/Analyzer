@@ -2,275 +2,201 @@
 <html>
 <head>
     <title>Script Analyzer - ALLOT</title>
-    <!-- Styling for the page -->
-    <style>        
-        body {
-            background-color: #0c1620; 
-            color: #ecf0f1; 
-            font-family: Verdana, sans-serif;
-            margin: 25px auto 0;
-            padding: 0;
-        }
-
-        h1 {
-            color: #c15004;
-            text-align: center;
-            margin-top: 20px;
-            font-size: 2em; /* Larger font size */
-            font-weight: bold; /* Bold font weight */
-            text-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
-        }
-
-        form {
-            max-width: 450px;
-            margin: 20px auto;
-            padding: 60px;
-            background-color: #343a40;
-            border-radius: 5px;
-            box-shadow: 15px 15px 15px rgba(0, 0, 0, 0.5);
-        }
-
-        label {
-            color: #ecf0f1; 
-        }
-
-        input[type="email"],
-        select,
-        input[type="file"] {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            margin-bottom: 10px;
-            box-sizing: border-box;
-            border: none;
-            border-radius: 3px;
-        }
-
-        input[type="submit"] {
-            width: 36%;
-            padding: 10px;
-            font-weight: bold;
-            font-size: 1.1em;
-            font-family: Verdana, sans-serif;
-            margin-top: 5px;
-            margin-bottom: -30px;
-            box-sizing: border-box;
-            border: none;
-            border-radius: 3px;
-            display: inline-block; /* Ensure the button is displayed as an inline block */
-            background-color: #3498db; /* Blue submit button */
-            color: #ecf0f1; /* Light text color */
-            cursor: pointer;
-            box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.5);
-            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5); /* Shadow effect for the text */
-        }
-
-        input[type="submit"]:hover {
-            background-color: #2980b9; /* Darker blue on hover */
-        }
-
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        li {
-            color: #f39c12; /* Orange message text color */
-            margin-bottom: 5px;
-        }
-
-        /* Styling for the progress bar */
-        .progress-bar {
-            width: 100%;
-            background-color: #ddd;
-            border-radius: 5px;
-            margin-top: 10px;
-            overflow: hidden;
-            display: block; /* Change 'none' to 'block' or 'inline-block' */
-        }
-
-        /* Styling for the progress bar */
-        .progress {
-            width: 0%;
-            height: 20px;
-            background-color: #f7dc6f; /* Blue progress color */
-            transition: width 0.5s; /* Smooth transition for width change */
-        }
-
-        /* Styling for the popup */
-        .popup {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 20px;
-            background-color: #fff;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            z-index: 9999;
-            display: none;
-        }
-
-        .success {
-            color: green;
-            font-weight: bold;
-        }
-
-        .error {
-            color: red;
-            font-weight: bold;
-        }
-
-        /* Display "Select File" label and file input button inline */
-        .file-input {
-            display: inline-block;
-            margin-top: 5px;
-            margin-right: 10px; /* Add margin between label and button */
-        }
-
-        /* Style the Choose File button */
-        #file {
-            display: inline-block;
-            width: calc(64% - 10px); /* Adjust width to fit on the same line */
-        }
-    </style>
+    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body>
-    <!-- Page heading -->
-    <h1>Script Analyzer - ALLOT</h1>
-    <!-- Form for uploading a file -->
-    <form id="upload-form" method="post" action="/upload" enctype="multipart/form-data">
-        <!-- Input for recipient email address -->
-        <label for="recipient_email" style="font-weight: bold; font-size: 1.1em; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);">Recipient Email Address:</label><br>
-        <input type="email" id="recipient_email" name="recipient_email" pattern="[a-zA-Z0-9._%+-]+@(thinkpalm\.com|allot\.com)$" title="Please enter a valid email from the Thinkpalm or ALLOT domain" required><br>
-        <small id="email-error" style="display:none; color:red;">Expected Email domain is example@thinkpalm.com or example@allot.com</small><br>
-
-        <!-- Select the type of file -->
-        <label for="file_type" style="font-weight: bold; font-size: 1.1em; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);">Select File Type:</label><br>
-        <select id="file_type" name="file_type" required>
-            <option value="cpp">C++/Header Script File</option>
-            <option value="diff">Unified Diff Patch File</option>
-        </select><br>
-
-        <!-- Input for selecting a file -->
-        <div class="file-input">
-            <label for="file" style="font-weight: bold; font-size: 1.1em; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);">Select File:</label>
-            <input type="file" id="file" name="file" accept="" required>
-        </div><br><br>
-
-        <!-- Submit button wrapper -->
-        <div style="text-align: center;">
-            <input type="submit" value="Submit">
+    <div class="relative min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 bg-gray-500 bg-no-repeat bg-cover relative items-center"
+        style="background-image: url(https://images.unsplash.com/photo-1557264337-e8a93017fe92?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D);">
+        <div class="absolute bg-black opacity-25 inset-0 z-0"></div>
+        <div class="absolute top-4 left-12 p-4">
+            <img src="https://www.allot.com/assets/img/header/allot-logo_tagline.svg" alt="ALLOT Logo" class="h-20">
         </div>
-
-        <!-- Label and progress bar for file upload progress -->
-        <label id="progress_label" style="display: none;">Uploading...</label>
-        <div class="progress-bar" style="display: none;">
-            <div class="progress" id="progress" style="width: 0%"></div>
+        <div class="sm:max-w-lg w-full p-10 rounded-xl z-10" style="background-color: rgba(229, 231, 235, 0.779);">
+            <div class="text-center">
+                <h2 class="mt-5 text-3xl font-bold text-gray-900">
+                    Script Analyzer
+                </h2>
+                <p class="mt-2 text-sm text-gray-900">C++ Coding Standards Analyzer</p>
+            </div>
+            <form class="mt-8 space-y-3" id="uploadForm">
+                <div class="grid grid-cols-1 space-y-2">
+                    <label class="text-sm font-bold text-gray-800 tracking-wide">Recipient Email Address:</label>
+                    <input id="recipient_email" name="recipient_email" class="text-base p-2 border border-black border-2 bg-gray-300 rounded-lg focus:outline-none focus:border-indigo-500" type="email" placeholder="user-id@thinkpalm.com or user-id@allot.com" required>
+                    <div id="email-error" class="text-red-500 text-sm hidden">Invalid email domain. Please use user-id@thinkpalm.com or user-id@allot.com.</div>
+                </div>
+                <div class="grid grid-cols-1 space-y-2">
+                    <label class="text-sm font-bold text-gray-800 tracking-wide">Select File Type:</label>
+                    <select id="fileType" name="fileType" class="text-base p-2 border border-black border-2 bg-gray-300 rounded-lg focus:outline-none focus:border-indigo-500" required>
+                        <option value="cpp">C++/Header File</option>
+                        <option value="diff">Unified Diff File</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 space-y-2">
+                    <label class="text-sm font-bold text-gray-800 tracking-wide">Attach File to be Reviewed:</label>
+                    <div class="flex items-center justify-center w-full">
+                        <label class="flex flex-col items-center justify-center rounded-lg border-4 border-dashed w-full h-60 p-10 group text-center">
+                            <div class="flex flex-col items-center justify-center h-full w-full text-center">
+                                <div class="flex flex-auto max-h-48 w-2/5 mx-auto">
+                                    <img id="fileImage" class="has-mask h-36 object-center" src="{{ url_for('static', filename='CPP-vector-file.png') }}" alt="file upload image">
+                                </div>
+                                <p class="pointer-none text-gray-700 mt-4" id="fileLabel">
+                                    <a href="#" id="fileLink" class="text-blue-600 hover:underline">Select the .cpp/.h File</a>
+                                </p>
+                            </div>
+                            <input id="file" name="file" type="file" class="hidden" accept=".cpp,.h,.diff,.patch" required>
+                        </label>
+                    </div>
+                    <div id="file-error" class="text-red-500 text-sm hidden">Please select a file to be reviewed.</div>
+                </div>
+                <div class="flex justify-between">
+                    <button type="submit" id="submitButton" class="my-5 w-1/2 flex justify-center bg-blue-500 text-gray-100 p-4 rounded-full tracking-wide font-semibold focus:outline-none focus:shadow-outline hover:bg-blue-600 shadow-lg cursor-pointer transition ease-in duration-300">
+                        Submit
+                    </button>
+                    <button type="button" id="resetButton" class="my-5 w-1/2 flex justify-center bg-gray-500 text-gray-100 p-4 rounded-full tracking-wide font-semibold focus:outline-none focus:shadow-outline hover:bg-gray-600 shadow-lg cursor-pointer transition ease-in duration-300">
+                        Reset
+                    </button>
+                </div>
+                <div id="successMessage" class="text-center mt-4 text-green-600 font-semibold hidden">File uploaded successfully.<br>Logs will be sent to the recipient.</div>
+            </form>
         </div>
-    </form>
-    <!-- Popup for success or error message -->
-    <div id="popup" class="popup" style="display: none;"></div>
+    </div>
 
-    <!-- JavaScript for updating the progress bar and showing the popup -->
-    <script>
-        // Update accepted file types based on the selected file type
-        function updateFileTypes() {
-            var fileInput = document.getElementById('file');
-            var fileType = document.getElementById('file_type').value;
-
-            var allowedExtensions = [];
-            if (fileType === 'cpp') {
-                allowedExtensions = ['.cpp', '.h'];
-            } else if (fileType === 'diff') {
-                allowedExtensions = ['.diff', '.patch'];
-            }
-
-            fileInput.setAttribute('accept', allowedExtensions.join(','));
-            fileInput.value = ''; // Clear file input value
+    <style>
+        .has-mask {
+            position: absolute;
+            clip: rect(10px, 150px, 130px, 10px);
         }
+    </style>
+    <script>
+        document.getElementById('fileLink').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('file').click();
+        });
 
-        // Trigger updateFileTypes function on page load
-        window.addEventListener('load', updateFileTypes);
+        document.getElementById('file').addEventListener('change', function() {
+            var maxSize = 4 * 1024 * 1024; // 4MB File max size allowed 
+            if (this.files[0].size > maxSize) {
+                alert('File is too large, please select a smaller file.');
+                this.value = '';
+            } else {
+                var fileName = this.files[0].name;
+                document.getElementById('fileLabel').innerHTML = 'File to be Reviewed: ' + fileName;
+                document.getElementById('file-error').style.display = 'none'; // Hide file error if a file is selected
+            }
+        });
 
-        // Trigger updateFileTypes function on file type select change
-        document.getElementById('file_type').addEventListener('change', updateFileTypes);
-
-        // Update progress bar during file upload
-        document.getElementById('upload-form').addEventListener('submit', function(event) {
-            var progress = document.getElementById('progress');
-            progress.style.width = '0%'; // Reset progress bar
-
+        document.getElementById('fileType').addEventListener('change', function() {
+            var fileType = this.value;
             var fileInput = document.getElementById('file');
-            var fileName = fileInput.value;
-            var fileType = document.getElementById('file_type').value;
-
-            var allowedExtensions = [];
+            var fileLabel = document.getElementById('fileLabel');
+            var fileImage = document.getElementById('fileImage');
+            
             if (fileType === 'cpp') {
-                allowedExtensions = ['.cpp', '.h'];
+                fileInput.accept = '.cpp,.h';
+                fileLabel.innerHTML = '<a href="#" id="fileLink" class="text-blue-600 hover:underline">Select the .cpp/.h File</a>';
+                fileImage.src = "{{ url_for('static', filename='CPP-vector-file.png') }}";
             } else if (fileType === 'diff') {
-                allowedExtensions = ['.diff', '.patch'];
+                fileInput.accept = '.diff,.patch';
+                fileLabel.innerHTML = '<a href="#" id="fileLink" class="text-blue-600 hover:underline">Select the .diff/.patch File</a>';
+                fileImage.src = "{{ url_for('static', filename='Diff-vector-file.png') }}";
             }
 
-            if (!allowedExtensions.some(ext => fileName.toLowerCase().endsWith(ext))) {
-                showPopup("Invalid file format. Please upload a file with a valid extension for the selected file type.", true);
-                fileInput.value = '';
-                event.preventDefault(); // Prevent form submission
-                return;
-            }
+            // Reattach the event listener for fileLink
+            document.getElementById('fileLink').addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('file').click();
+            });
+        });
 
-            // Check if the email is from the Thinkpalm or ALLOT domain
-            var emailInput = document.getElementById('recipient_email');
-            var email = emailInput.value;
+        document.getElementById('uploadForm').addEventListener('submit', function(event) {
+            // Check email domain
+            var email = document.getElementById('recipient_email').value;
             if (!email.toLowerCase().endsWith('@thinkpalm.com') && !email.toLowerCase().endsWith('@allot.com')) {
                 // Show error message
                 document.getElementById('email-error').style.display = 'block';
                 event.preventDefault(); // Prevent form submission
                 return;
+            } else {
+                document.getElementById('email-error').style.display = 'none';
             }
 
+            // Check if file is selected
+            var fileInput = document.getElementById('file');
+            if (!fileInput.value) {
+                document.getElementById('file-error').style.display = 'block'; // Show file error if no file is selected
+                document.getElementById('file-error').textContent = 'Please Select the required File that needs to be Reviewed.'; // Update error message
+                event.preventDefault();
+                return;
+            }
+
+            // Check file extension based on selected file type
+            var fileType = document.getElementById('fileType').value;
+            var allowedExtensions = [];
+            if (fileType === 'cpp') {
+                allowedExtensions = ['.cpp', '.h'];
+            } else if (fileType === 'diff') {
+                allowedExtensions = ['.diff', '.patch'];
+            }
+
+            var fileName = fileInput.value;
+            var fileExtension = fileName.split('.').pop().toLowerCase();
+            if (!allowedExtensions.includes('.' + fileExtension)) {
+                alert("Invalid file format.\nPlease Reset Page and Upload a cpp header or unified diff file.");
+                fileInput.value = '';
+                event.preventDefault();
+                return;
+            }
+
+            event.preventDefault();
+
+            // Disable submit button and change color to grey
+            var submitButton = document.getElementById('submitButton');
+            submitButton.disabled = true;
+            submitButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            submitButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+            var resetButton = document.getElementById('resetButton');
+            resetButton.disabled = false;
+
+            var formData = new FormData(this);
             var xhr = new XMLHttpRequest();
-            xhr.upload.addEventListener('progress', function(e) {
-                if (e.lengthComputable) {
-                    var percentComplete = (e.loaded / e.total) * 100;
-                    progress.style.width = percentComplete + '%';
-                }
-            });
-            xhr.upload.addEventListener('load', function(e) {
-                // File upload completed, show success popup
-                showPopup("File Uploaded Successfully for Analysis", false);
-                // Simulate sending email (1.5s delay)
-                setTimeout(function() {
-                    showPopup("Successful!", false);
-                }, 2500); // Show the "Email Sent Successfully" popup after 2.5 seconds
-            });
             xhr.open('POST', '/upload', true);
-            xhr.setRequestHeader('Content-Type', 'multipart/form-data');
-            xhr.send(new FormData(event.target));
 
-            // Function to show a popup message with auto-close functionality
-            function showPopup(message, isError) {
-                var popup = document.getElementById('popup');
-                popup.innerText = message;
-                if (isError) {
-                    popup.classList.add('error');
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    document.getElementById('successMessage').classList.remove('hidden');
                 } else {
-                    popup.classList.add('success');
+                    alert('An error occurred during the upload. Please try again.');
                 }
-                popup.style.display = 'block';
-                setTimeout(function() {
-                    popup.style.display = 'none';
-                }, 1500); // Close the popup after 1.5 seconds
-            }
+            };
+
+            xhr.onerror = function() {
+                alert('An error occurred during the upload. Please try again.');
+            };
+
+            xhr.send(formData);
         });
 
-        document.getElementById('file').addEventListener('change', function() {
-            var maxSize = 5 * 1024 * 1024;
-            if (this.files[0].size > maxSize) {
-                alert('File is too large, please select a smaller file.');
-                this.value = '';
-            }
+        document.getElementById('resetButton').addEventListener('click', function() {
+            // Reset form and hide error messages
+            document.getElementById('uploadForm').reset();
+            document.getElementById('fileLabel').innerHTML = '<a href="#" id="fileLink" class="text-blue-600 hover:underline">Select the .cpp/.h File</a>';
+            document.getElementById('fileImage').src = "{{ url_for('static', filename='CPP-vector-file.png') }}";
+            document.getElementById('successMessage').classList.add('hidden');
+            document.getElementById('email-error').style.display = 'none';
+            document.getElementById('file-error').style.display = 'none';
+            var submitButton = document.getElementById('submitButton');
+            submitButton.disabled = false;
+            submitButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            submitButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            var resetButton = document.getElementById('resetButton');
+            resetButton.disabled = false;
+
+            // Reattach the event listener for fileLink
+            document.getElementById('fileLink').addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('file').click();
+            });
         });
     </script>
 </body>
