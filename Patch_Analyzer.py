@@ -165,7 +165,6 @@ class PatchAnalyzer:
         new_file = old_file_info[0] == '-0' and new_file_info[0] == '+1'
         start_line = 1 if new_file else int(new_file_info[0])
         line_count = int(new_file_info[1]) if len(new_file_info) > 1 else 0
-        print(f'"old_file_info": {old_file_info},"new_file_info":{new_file_info},"start_line": {start_line}, "current_line_number": {start_line}, "line_count": {line_count}, "new_file": {new_file}')
         return {"start_line": start_line, "current_line_number": start_line, "line_count": line_count, "new_file": new_file}
 
     def process_patch_file(self):
